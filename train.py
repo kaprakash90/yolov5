@@ -79,6 +79,7 @@ def train(hyp):
     # Create model
     model = Model(opt.cfg).to(device)
     assert model.md['nc'] == nc, '%s nc=%g classes but %s nc=%g classes' % (opt.data, nc, opt.cfg, model.md['nc'])
+    model.names = data_dict['names']
 
     # Image sizes
     gs = int(max(model.stride))  # grid size (max stride)
@@ -117,9 +118,8 @@ def train(hyp):
                              if model.state_dict()[k].shape == v.shape}  # to FP32, filter
             model.load_state_dict(ckpt['model'], strict=False)
         except KeyError as e:
-            s = "%s is not compatible with %s. This may be due to model differences or %s may be out of date. " \
-                "Please delete or update %s and try again, or use --weights '' to train from scratch." \
-                % (opt.weights, opt.cfg, opt.weights, opt.weights)
+            s = "%s is not compatible with %s. Specify --weights '' or specify a --cfg compatible with %s." \
+                % (opt.weights, opt.cfg, opt.weights)
             raise KeyError(s) from e
 
         # load optimizer
@@ -132,13 +132,7 @@ def train(hyp):
             with open(results_file, 'w') as file:
                 file.write(ckpt['training_results'])  # write results.txt
 
-        # epochs
         start_epoch = ckpt['epoch'] + 1
-        if epochs < start_epoch:
-            print('%s has been trained for %g epochs. Fine-tuning for %g additional epochs.' %
-                  (opt.weights, ckpt['epoch'], epochs))
-            epochs += ckpt['epoch']  # finetune additional epochs
-
         del ckpt
 
     # Mixed precision training https://github.com/NVIDIA/apex
@@ -169,7 +163,7 @@ def train(hyp):
 
     # Testloader
     testloader = create_dataloader(test_path, imgsz_test, batch_size, gs, opt,
-                                   hyp=hyp, augment=False, cache=opt.cache_images, rect=True)[0]
+                                            hyp=hyp, augment=False, cache=opt.cache_images, rect=True)[0]
 
     # Model parameters
     hyp['cls'] *= nc / 80.  # scale coco-tuned hyp['cls'] to current dataset
@@ -177,7 +171,6 @@ def train(hyp):
     model.hyp = hyp  # attach hyperparameters to model
     model.gr = 1.0  # giou loss ratio (obj_loss = 1.0 or giou)
     model.class_weights = labels_to_class_weights(dataset.labels, nc).to(device)  # attach class weights
-    model.names = data_dict['names']
 
     # Class frequency
     labels = np.concatenate(dataset.labels, 0)
@@ -205,7 +198,7 @@ def train(hyp):
     print('Using %g dataloader workers' % dataloader.num_workers)
     print('Starting training for %g epochs...' % epochs)
     # torch.autograd.set_detect_anomaly(True)
-    for epoch in range(start_epoch, epochs):  # epoch ------------------------------------------------------------------
+    for epoch in range(start_epoch, start_epoch+epochs):  # epoch ------------------------------------------------------------------
         model.train()
 
         # Update image weights (optional)
@@ -294,7 +287,7 @@ def train(hyp):
                                              batch_size=batch_size,
                                              imgsz=imgsz_test,
                                              save_json=final_epoch and opt.data.endswith(os.sep + 'coco.yaml'),
-                                             model=ema.ema.module if hasattr(model, 'module') else ema.ema,
+                                             model=ema.ema,
                                              single_cls=opt.single_cls,
                                              dataloader=testloader)
 
@@ -336,20 +329,20 @@ def train(hyp):
         # end epoch ----------------------------------------------------------------------------------------------------
     # end training
 
-    # Strip optimizers
-    n = ('_' if len(opt.name) and not opt.name.isnumeric() else '') + opt.name
-    fresults, flast, fbest = 'results%s.txt' % n, wdir + 'last%s.pt' % n, wdir + 'best%s.pt' % n
-    for f1, f2 in zip([wdir + 'last.pt', wdir + 'best.pt', 'results.txt'], [flast, fbest, fresults]):
-        if os.path.exists(f1):
-            os.rename(f1, f2)  # rename
-            ispt = f2.endswith('.pt')  # is *.pt
-            strip_optimizer(f2) if ispt else None  # strip optimizer
-            os.system('gsutil cp %s gs://%s/weights' % (f2, opt.bucket)) if opt.bucket and ispt else None  # upload
+    n = opt.name
+    if len(n):
+        n = '_' + n if not n.isnumeric() else n
+        fresults, flast, fbest = 'results%s.txt' % n, wdir + 'last%s.pt' % n, wdir + 'best%s.pt' % n
+        for f1, f2 in zip([wdir + 'last.pt', wdir + 'best.pt', 'results.txt'], [flast, fbest, fresults]):
+            if os.path.exists(f1):
+                os.rename(f1, f2)  # rename
+                ispt = f2.endswith('.pt')  # is *.pt
+                strip_optimizer(f2) if ispt else None  # strip optimizer
+                os.system('gsutil cp %s gs://%s/weights' % (f2, opt.bucket)) if opt.bucket and ispt else None  # upload
 
-    # Finish
     if not opt.evolve:
         plot_results()  # save as results.png
-    print('%g epochs completed in %.3f hours.\n' % (epoch - start_epoch + 1, (time.time() - t0) / 3600))
+    # print('%g epochs completed in %.3f hours.\n' % (epoch - start_epoch + 1, (time.time() - t0) / 3600))
     dist.destroy_process_group() if device.type != 'cpu' and torch.cuda.device_count() > 1 else None
     torch.cuda.empty_cache()
     return results

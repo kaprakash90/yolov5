@@ -80,11 +80,19 @@ class Model(nn.Module):
                                     torch_utils.scale_img(x, s[1]),  # scale
                                     )):
                 # cv2.imwrite('img%g.jpg' % i, 255 * xi[0].numpy().transpose((1, 2, 0))[:, :, ::-1])
-                y.append(self.forward_once(xi)[0])
-
+                y.append(self.forward_once(xi)[0]) 
+            
             y[1][..., :4] /= s[0]  # scale
             y[1][..., 0] = img_size[1] - y[1][..., 0]  # flip lr
+            #
             y[2][..., :4] /= s[1]  # scale
+            #
+            y[3][..., 0] = img_size[1] - y[3][..., 0]  # flip lr
+            #
+            y[4][..., :4] /= s[0]  # scale
+            y[4][..., 1] = img_size[0] - y[4][..., 1]  # flip ud
+            #
+            y[5][..., 1] = img_size[0] - y[5][..., 1]  # flip ud
             return torch.cat(y, 1), None  # augmented inference, train
         else:
             return self.forward_once(x, profile)  # single-scale inference, train
