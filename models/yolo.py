@@ -78,10 +78,13 @@ class Model(nn.Module):
             for i, xi in enumerate((x,
                                     torch_utils.scale_img(x.flip(3), s[0]),  # flip-lr and scale
                                     torch_utils.scale_img(x, s[1]),  # scale
+                                    x.flip(3), # only flip-lr
+                                    torch_utils.scale_img(x.flip(2), s[0]),  # flip-ud and scale
+                                    x.flip(2),  # only flip-lr
                                     )):
                 # cv2.imwrite('img%g.jpg' % i, 255 * xi[0].numpy().transpose((1, 2, 0))[:, :, ::-1])
-                y.append(self.forward_once(xi)[0]) 
-            
+                y.append(self.forward_once(xi)[0])
+
             y[1][..., :4] /= s[0]  # scale
             y[1][..., 0] = img_size[1] - y[1][..., 0]  # flip lr
             #
@@ -125,7 +128,7 @@ class Model(nn.Module):
     def _initialize_biases(self, cf=None):  # initialize biases into Detect(), cf is class frequency
         # cf = torch.bincount(torch.tensor(np.concatenate(dataset.labels, 0)[:, 0]).long(), minlength=nc) + 1.
         m = self.model[-1]  # Detect() module
-        for f, s in zip(m.f, m.stride):  #  from
+        for f, s in zip(m.f, m.stride):  #  from
             mi = self.model[f % m.i]
             b = mi.bias.view(m.na, -1)  # conv.bias(255) to (3,85)
             b[:, 4] += math.log(8 / (640 / s) ** 2)  # obj (8 objects per 640 image)
@@ -134,7 +137,7 @@ class Model(nn.Module):
 
     def _print_biases(self):
         m = self.model[-1]  # Detect() module
-        for f in sorted([x % m.i for x in m.f]):  #  from
+        for f in sorted([x % m.i for x in m.f]):  #  from
             b = self.model[f].bias.detach().view(m.na, -1).T  # conv.bias(255) to (3,85)
             print(('%g Conv2d.bias:' + '%10.3g' * 6) % (f, *b[:5].mean(1).tolist(), b[5:].mean()))
 
@@ -215,7 +218,7 @@ def parse_model(md, ch):  # model_dict, input_channels(3)
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('--cfg', type=str, default='yolov5s.yaml', help='model.yaml')
+    parser.add_argument('--cfg', type=str, default='yolov5m-p6.yaml', help='model.yaml')
     parser.add_argument('--device', default='', help='cuda device, i.e. 0 or 0,1,2,3 or cpu')
     opt = parser.parse_args()
     opt.cfg = check_file(opt.cfg)  # check file
