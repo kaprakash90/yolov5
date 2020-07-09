@@ -13,7 +13,6 @@ import torch
 from PIL import Image, ExifTags
 from torch.utils.data import Dataset
 from tqdm import tqdm
-import torchvision
 
 from utils.utils import xyxy2xywh, xywh2xyxy
 
@@ -528,16 +527,6 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 img = np.flipud(img)
                 if nL:
                     labels[:, 2] = 1 - labels[:, 2]
-            
-            # random up-down flip
-            # gray = True
-            # if gray and random.random() < 0.3:
-            #     tfms = torchvision.transforms.Compose([
-            #         torchvision.transforms.ToPILImage(),
-            #         torchvision.transforms.Grayscale(num_output_channels=3)
-            #     ])
-            #     gray_pil_img = tfms(img)
-            #     img = np.array(gray_pil_img)
 
         labels_out = torch.zeros((nL, 6))
         if nL:
