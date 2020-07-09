@@ -530,14 +530,14 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                     labels[:, 2] = 1 - labels[:, 2]
             
             # random up-down flip
-            gray = True
-            if gray and random.random() < 0.3:
-                tfms = torchvision.transforms.Compose([
-                    torchvision.transforms.ToPILImage(),
-                    torchvision.transforms.Grayscale(num_output_channels=3)
-                ])
-                gray_pil_img = tfms(img)
-                img = np.array(gray_pil_img)
+            # gray = True
+            # if gray and random.random() < 0.3:
+            #     tfms = torchvision.transforms.Compose([
+            #         torchvision.transforms.ToPILImage(),
+            #         torchvision.transforms.Grayscale(num_output_channels=3)
+            #     ])
+            #     gray_pil_img = tfms(img)
+            #     img = np.array(gray_pil_img)
 
         labels_out = torch.zeros((nL, 6))
         if nL:
