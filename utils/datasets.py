@@ -548,8 +548,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 bbox_params=A.BboxParams(
                     format='yolo',
                     min_area=0, 
-                    min_visibility=0,
-                    label_fields=['labels']
+                    min_visibility=0
                 ))
             tf_img = tfms(**tf_img)
             img = tf_img['image']
