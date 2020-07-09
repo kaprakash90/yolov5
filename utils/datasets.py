@@ -530,7 +530,12 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 if nL:
                     labels[:, 2] = 1 - labels[:, 2]
 
-
+            tf_img = {
+                'image': img,
+                'bboxes': labels,
+                'labels': torch.ones((labels.shape[0],), dtype=torch.int64)
+            }
+            
             tfms = A.Compose(
                 [
                     A.Cutout(num_holes=8, max_h_size=64, max_w_size=64, fill_value=0, p=0.6),
@@ -546,9 +551,9 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                     min_visibility=0,
                     label_fields=['labels']
                 ))
-            img_tf = tfms(image=img)
-            img = img_tf['image']
-            labels =  img_tf['bboxes']
+            tf_img = tfms(**tf_img)
+            img = tf_img['image']
+            labels =  tf_img['bboxes']
 
 
         labels_out = torch.zeros((nL, 6))
