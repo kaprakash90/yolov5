@@ -14,7 +14,6 @@ from PIL import Image, ExifTags
 from torch.utils.data import Dataset
 from tqdm import tqdm
 import torchvision
-import albumentations as A
 
 from utils.utils import xyxy2xywh, xywh2xyxy
 
@@ -517,7 +516,7 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
 
         if self.augment:
             # random left-right flip
-            lr_flip = False
+            lr_flip = True
             if lr_flip and random.random() < 0.5:
                 img = np.fliplr(img)
                 if nL:
@@ -529,31 +528,16 @@ class LoadImagesAndLabels(Dataset):  # for training/testing
                 img = np.flipud(img)
                 if nL:
                     labels[:, 2] = 1 - labels[:, 2]
-
-            tf_img = {
-                'image': img,
-                'bboxes': labels,
-                'labels': torch.ones((labels.shape[0],), dtype=torch.int64)
-            }
             
-            tfms = A.Compose(
-                [
-                    A.Cutout(num_holes=8, max_h_size=64, max_w_size=64, fill_value=0, p=0.6),
-                    A.ToGray(p=0.5),
-                    A.HorizontalFlip(p=0.5),
-                    A.VerticalFlip(p=0.5),
-                    A.RandomRotate90(p=0.5)
-                ], 
-                p=1.0, 
-                bbox_params=A.BboxParams(
-                    format='yolo',
-                    min_area=0, 
-                    min_visibility=0
-                ))
-            tf_img = tfms(**tf_img)
-            img = tf_img['image']
-            labels =  tf_img['bboxes']
-
+            # random up-down flip
+            gray = True
+            if gray and random.random() < 0.3:
+                tfms = torchvision.transforms.Compose([
+                    torchvision.transforms.ToPILImage(),
+                    torchvision.transforms.Grayscale(num_output_channels=3)
+                ])
+                gray_pil_img = tfms(img)
+                img = np.array(gray_pil_img)
 
         labels_out = torch.zeros((nL, 6))
         if nL:
